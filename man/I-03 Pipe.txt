@@ -1,0 +1,143 @@
+ps aux > out.txt	//вывод в файл
+scanf("%s");
+my_prog < out.txt	//ввод из файла
+
+grep "root"		//вычленяет всё, что начинается с root
+
+ps aux|grep "root"|wc -l //покажет количество процессов, запущенных рутом
+
+fd=open("text.txt")	//узнаем дескриптор (если ничего не открыто, то fd=3)
+
+0	stdin
+1	stdout		//правильные сообщения
+2	stderr		//сообщения об ошибках
+3	text.txt
+
+gcc my.c &2>1|wc -l 	//посчитает количество ошибок, перенаправив второй дескриптор на первый (stderr в stdout).
+
+my_prog > out.txt 	//myprog &2>fd
+
+Нехороший метод;
+
+int main(){
+    ...
+    close(1);
+    open("out.txt");	//а первым свободным индексом в массиве дескрипторов будет 1.
+    printf("	");
+    ...
+]			//Метод нехорош тем, что может быть закрыт stdout, и тогда дескриптор out.txt будет 0.
+    
+Хороший метод:
+
+int main(){
+    ...
+    old_stdout=dup(1);
+    fd=open("out.txt");
+    dup2(fd,1);		//dup2(fd_from, fd_to) -- дескриптор fd_to будет показывать туда же, куда и fd_from.
+    ...
+    dup2(old_stdout,1)	//возвращаем всё как было.
+    ...
+}
+
+#include <unistd.h>
+
+STDIN_FILENO=0
+STDOUT_FILENO=1
+STDERR_FILENO=2
+
+
+scanf("%s",cmd_line);	
+...			//cmd_line -> file_to_run, file_to_redirect
+int pid=fork();
+if (pid==0){
+  fd=open("file_to_redirect");
+  dup2(fd,1);
+  close(fd);
+  exec(file_to_run);
+}
+
+
+PIPE.
+
+проц1		   проц2
+
+stdin
+stdout -> PIPE	-> stdin
+		-> stdout
+
+
+->fd_in PIPE ->fd_out 
+
+
+int main(){
+    int fd[2];
+    pipe(fd);		//появятся два дексриптора, в fd[1] можно что-то писать, из fd[0] - читать.
+    write(fd[1],"Hello",6);
+    read(fd[0[,buff,6);
+}
+
+ограничение на длину пайпа есть.
+
+prog1|prog2
+
+int fd[2];
+pipe(fd);
+pid1=fork();
+if (pid1==0){
+  dup2(fd[1],1);
+  close(fd[0]);
+  close(fd[1]);
+  exec(prog[1]);
+}
+pid2=fork();
+if (pid2===0){
+  dup2(fd[0],0);
+  close(fd[0]);
+  close(fd[1]);
+  exec(prog2);
+}
+close(fd[0]);
+close(fd[1]);
+
+The End.
+
+ЗАДАНИЕ,
+
+Написать Упрощённый Shell.
+
+myshell.c
+
+Command Prompt
+$ls
+...
+...
+...
+...
+lines:10	//статистика по аутпуту программы (кол-во строчек, кол-во слов, кол-во символов);
+words:20
+chars:30
+$myprog
+...
+...
+...
+lines:10	
+words:20
+chars:30
+$ps aux|wc -l	//поддержка однократного PIPE.
+74
+lines: 1
+words: 2
+chars: 2
+$
+
+pipe fd[2]
+fork(){
+  dup2(fd[1],stdout);
+  close(fd[1]);
+  close{fd[0]);
+  exec(...);
+}
+close(fd[1]);
+while(read(fd[0],buff,64)){
+
+};

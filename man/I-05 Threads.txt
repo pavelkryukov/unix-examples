@@ -1,0 +1,241 @@
+ћноготредовое программирование.
+
+ѕроцессоров может быть много и они бывают много€дерные. ƒл€ полного их использовани€ придумали треды.
+
+“ред Ч дополнительный поток, исполн€емый внутри одного процессора.
+
+Memory, Code остаютс€
+Register, Stack и исполнитель раздваиваютс€ и более.
+
+ќчень легко параллелитс€ подсчет интегралов Ч один считает левую часть, второй Ч правую.
+
+================	
+P-threads (POSIX)
+================
+
+pthread_create(pthread_t* tid, int attributes, *void() startup_func, (void)*args);
+	
+	pthread_t* Ч идентификатор;
+	attributes = 0;
+	startup_func Ч функци€ запуска;
+	
+	
+	void *my_func(void *arg)
+	{
+		printf("hello\n");
+	}
+
+	pthread_t tid;
+	pthread_create(&tid, 0, my_func, 0);
+	
+»нтегратор
+
+	#include <stdio.h>
+	#define N = 10
+	
+	struct task
+	{
+		float from;
+		float to;
+		float result;
+	}
+	
+	void *integrate(void *t)
+	{
+		struct task *mytask; 
+		mytask = (struct task*)t;
+		
+		<code>
+		
+		mytask->result = res;
+	//	pthread_exit(EXIT_SUCCESS);
+	}
+	
+	int main()
+	{
+		struct task Tasks[N];
+		pthread_t threads[N];
+		for ( i = 0; i < N; i++)
+		{
+			Tasks[i].from = i;
+			Tasks[i].to = i;
+			pthread_create(&threads[i], 0, integrate, (void*)&Tasks[i]);
+		}
+		for ( i = 0; i < N; i++)
+		{
+			pthread_join(threads[i]);		//задержка
+		}
+		for ( i = 0; i < N; i++);
+		{
+			result += Tasks[i].result;
+		}
+		printf("%f\n", result);
+		return 0;
+	}
+	
+=============
+Mutex
+=============
+
+int i=0;
+
+I тред
+	for ( n = 0; n < 1000000; n++)
+	{
+		i++;
+	}
+	
+	mov	eax1, [&i]
+	inc eax1
+	mov [&i], eax1
+	
+II тред	
+	for ( n = 1000000; n > 0; n++)
+	{
+		i--;
+	}
+	
+	mov	eax2, [&i]
+	dec eax2
+	mov [&i], eax2
+	
+Ёта программа даст чушь, а не i == 0;
+
+—инхронизаци€ Ч механизмы, с помощью которых этого не происходит.
+
+ѕростейший синхрозационный примитив Ч Mutex (критическа€ секци€)
+
+	lock	//зашита строчки
+	mov	eax1, [&i]
+	inc eax1
+	mov [&i], eax1
+	unlock	
+	
+-----------------
+	
+	#include <stdio.h>
+	#define N = 10
+	
+	float globalResult;
+	pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
+	
+	struct task
+	{
+		float from;
+		float to;
+	}
+	
+	void *integrate(void *t)
+	{
+		struct task *mytask; 
+		mytask = (struct task*)t;
+		
+		<code>
+		
+		pthread_mutex_lock(&Mutex);	//защита строчки
+		globalResult += localResult;	//критическа€ секци€ (исполн€етс€ только одним тредом)
+		pthread_mutex_unlock(&Mutex);
+	}
+	
+	int main()
+	{
+		struct task Tasks[N];
+		pthread_t threads[N];
+		for ( i = 0; i < N; i++)
+		{
+			Tasks[i].from = i;
+			Tasks[i].to = i;
+			pthread_create(&threads[i], 0, integrate, (void*)&Tasks[i]);
+		}
+		for ( i = 0; i < N; i++)
+		{
+			pthread_join(threads[i]);		//задержка
+		}
+		printf("%f\n", globalResult);
+		return 0;
+	}	
+	
+—терилизаци€ Ч это враг параллелизма.
+
+==================================
+Pthread Conditional Variable
+==================================
+
+Mutex ограничен в своем применении Ч нельз€ хорошо написать producer|consumer.
+
+Producer ===============> Consumer
+office					  printer
+
+
+#define qSize 10
+
+pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t queue_doc_exist = PTHREAD_COND_INITIALIZER;
+pthread_cond_t queue_free_space_exist = PTHREAD_COND_INITIALIZER;
+
+Producer
+	
+	while(1)
+	{
+		prepare_doc();		//работает долго
+		pthread_mutex_lock( &Mutex);
+		while ( n == qSize)
+		{
+			pthread_cond_wait( queue_free_apace_exist, &Mutex);		//умеет отпускать Mutex
+		}
+		put_doc();			//будет взводить conditionals (потому что она измен€ет n++)
+	/**{
+	  *		n++;
+	  *		if ( n == 1)
+	  *		{
+	  *			pthread_cond_broadcast(&queue_doc_exist);
+	  *		}
+	  *}*/
+		
+		pthread_mutex_unlock( &Mutex);
+	}
+
+Consumer
+
+	while(1)
+	{
+		pthread_mutex_lock( &Mutex);
+		while( n == 0)
+		{
+			pthread_cond_wait( queue_doc_exist, &Mutex);
+		}
+		get_doc();			//будет взводить conditionals (потому что она измен€ет n--)
+	/**{
+	  *		n--;
+	  *		if ( n == qSize-1)
+	  *		{
+	  *			pthread_cond_broadcast(&queue_free_space_exist);
+	  *		}
+	  *}*/
+		pthread_mutex_unlock( &Mutex);		
+		print_doc();		//работает долго
+	}
+	
+	
+pthread_cond_broadcast Ч будит всех;
+pthread_cond_signal Ч будит одного;
+
+*********************
+«адача
+*********************
+
+≈сть офисные работники, есть принтеры.
+
+1..N офисных работников.
+1..M принтеров.
+ќчередь размера QSIZE.
+–аботники печатают в очередь свой идентификатор.
+prepare_document(){
+	sleep(random(x));
+}
+ аждый работник должен напечатать K документов. (всего N*K).
+¬ конце нужно распечатать таблицу размером (M*N), содержащую количество документов, распечатанных принтером от каждого рабочего.
+
+
+=========================
+ћатериалы по семинару: http://computing.llnl.gov/tutorials/pthreads/
